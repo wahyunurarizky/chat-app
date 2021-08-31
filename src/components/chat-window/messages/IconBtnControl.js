@@ -17,6 +17,7 @@ const IconBtnControl = ({
   badgeContent,
   ...props
 }) => {
+  console.log(badgeContent);
   return (
     <div
       className="ml-2"
