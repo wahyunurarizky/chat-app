@@ -32,6 +32,7 @@ const Chat = () => {
   const currentRoomData = {
     name,
     description,
+    admins,
     isAdmin,
   };
 
