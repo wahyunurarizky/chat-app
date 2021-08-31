@@ -25,9 +25,10 @@ const MessageItem = ({ message, handleAdmin, handleLike }) => {
 
   const canShowIcons = isMobile || isHovered;
 
-  const isLiked = !!likes && Object.keys(likes).includes(auth.currentUser.uid);
+  const isLiked = likes && Object.keys(likes).includes(auth.currentUser.uid);
   // console.log(likes);
   // console.log(isLiked);
+  console.log(likeCount);
 
   return (
     <li
