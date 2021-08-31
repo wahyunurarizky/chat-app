@@ -12,7 +12,6 @@ const Messages = () => {
   const isChatEmpty = messages && messages.length === 0;
   const canShowMessages = messages && messages.length > 0;
 
-  console.log(messages);
   useEffect(() => {
     const messagesRef = database.ref('/messages');
 
@@ -21,7 +20,6 @@ const Messages = () => {
       .equalTo(chatId)
       .on('value', snap => {
         const data = transformToArrayWithId(snap.val());
-        console.log(snap.val());
         setMessages(data);
       });
 
