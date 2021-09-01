@@ -1,32 +1,81 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router';
-import { Alert } from 'rsuite';
-import { auth, database } from '../../../misc/firebase';
-import { transformToArrayWithId } from '../../../misc/helpers';
+import { Alert, Button } from 'rsuite';
+import { auth, database, storage } from '../../../misc/firebase';
+import { groupBy, transformToArrayWithId } from '../../../misc/helpers';
 import MessageItem from './MessageItem';
 
+const PAGE_SIZE = 15;
+const messagesRef = database.ref('/messages');
+
+function shouldScrollToBottom(node, threshold = 50) {
+  const percentage =
+    (100 * node.scrollTop) / (node.scrollHeight - node.clientHeight) || 0;
+
+  return percentage > threshold;
+}
 const Messages = () => {
   const { chatId } = useParams();
   const [messages, setMessages] = useState(null);
+  const [limit, setLimit] = useState(PAGE_SIZE);
+  const [dataLength, setDataLength] = useState(0);
+
+  // console.log(limit);
+
+  const selfRef = useRef();
 
   const isChatEmpty = messages && messages.length === 0;
   const canShowMessages = messages && messages.length > 0;
 
-  useEffect(() => {
-    const messagesRef = database.ref('/messages');
+  const loadMessages = useCallback(
+    limitToLast => {
+      const node = selfRef.current;
+      messagesRef.off();
 
-    messagesRef
-      .orderByChild('roomId')
-      .equalTo(chatId)
-      .on('value', snap => {
-        const data = transformToArrayWithId(snap.val());
-        setMessages(data);
-      });
+      messagesRef
+        .orderByChild('roomId')
+        .equalTo(chatId)
+        .limitToLast(limitToLast || PAGE_SIZE)
+        .on('value', snap => {
+          const data = transformToArrayWithId(snap.val());
+
+          if (shouldScrollToBottom(node)) {
+            node.scrollTop = node.scrollHeight;
+          }
+
+          setMessages(data);
+          setDataLength(data.length);
+        });
+
+      setLimit(p => p + PAGE_SIZE);
+    },
+    [chatId]
+  );
+  const onLoadMore = useCallback(() => {
+    const node = selfRef.current;
+    const oldHeight = node.scrollHeight;
+
+    loadMessages(limit);
+
+    setTimeout(() => {
+      const newHeight = node.scrollHeight;
+      node.scrollTop = newHeight - oldHeight;
+    }, 200);
+  }, [loadMessages, limit]);
+
+  useEffect(() => {
+    const node = selfRef.current;
+
+    loadMessages();
+
+    setTimeout(() => {
+      node.scrollTop = node.scrollHeight;
+    }, 200);
 
     return () => {
       messagesRef.off('value');
     };
-  }, [chatId]);
+  }, [loadMessages]);
 
   const handleAdmin = useCallback(
     async uid => {
@@ -76,7 +125,8 @@ const Messages = () => {
   }, []);
 
   const handleDelete = useCallback(
-    async msgId => {
+    async (msgId, file) => {
+      // eslint-disable-next-line no-alert
       if (!window.confirm('Delete this message ?')) {
         return;
       }
@@ -99,14 +149,66 @@ const Messages = () => {
         await database.ref().update(updates);
         Alert.info('messages has been deleted', 4000);
       } catch (err) {
-        Alert.error(err.message, 4000);
+        // eslint-disable-next-line consistent-return
+        return Alert.error(err.message, 4000);
+      }
+
+      if (file) {
+        try {
+          const fileRef = await storage.refFromURL(file.url);
+          await fileRef.delete();
+        } catch (err) {
+          Alert.error(err.message, 4000);
+        }
       }
     },
     [chatId, messages]
   );
 
+  const renderMessages = () => {
+    const groups = groupBy(messages, item =>
+      new Date(item.createdAt).toLocaleString('id-ID', { dateStyle: 'full' })
+    );
+    const items = [];
+
+    Object.keys(groups).forEach(date => {
+      items.push(
+        <li className="text-center padded mb-1 " key={date}>
+          {date}
+        </li>
+      );
+
+      // console.log(groups);
+      const msgs = groups[date].map(msg => (
+        <MessageItem
+          key={msg.id}
+          message={msg}
+          handleLike={handleLike}
+          handleAdmin={handleAdmin}
+          handleDelete={handleDelete}
+        />
+      ));
+
+      items.push(...msgs);
+      // items.concat(msgs);
+    });
+    return items;
+  };
+
   return (
-    <ul className="msg-list custom-scroll">
+    <ul className="msg-list custom-scroll" ref={selfRef}>
+      {messages && messages.length >= PAGE_SIZE && (
+        <li className="text-center mt-2 mb-2">
+          <Button
+            style={limit - dataLength > PAGE_SIZE ? { display: 'none' } : {}}
+            onClick={onLoadMore}
+            color="green"
+          >
+            Load more
+          </Button>
+        </li>
+      )}
+
       {isChatEmpty && (
         <div
           className="d-flex h-100 justify-content-center align-items-center"
@@ -115,16 +217,7 @@ const Messages = () => {
           No messages yet
         </div>
       )}
-      {canShowMessages &&
-        messages.map(m => (
-          <MessageItem
-            key={m.id}
-            message={m}
-            handleLike={handleLike}
-            handleAdmin={handleAdmin}
-            handleDelete={handleDelete}
-          />
-        ))}
+      {canShowMessages && renderMessages()}
     </ul>
   );
 };
