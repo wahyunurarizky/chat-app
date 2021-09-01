@@ -47,7 +47,12 @@ const Messages = () => {
           setDataLength(data.length);
         });
 
-      setLimit(p => p + PAGE_SIZE);
+      setLimit(p => {
+        if (!limitToLast) {
+          return PAGE_SIZE;
+        }
+        return p + PAGE_SIZE;
+      });
     },
     [chatId]
   );
@@ -55,13 +60,15 @@ const Messages = () => {
     const node = selfRef.current;
     const oldHeight = node.scrollHeight;
 
-    loadMessages(limit);
-
+    loadMessages(limit === PAGE_SIZE ? limit + PAGE_SIZE : limit);
+    if (limit === PAGE_SIZE) setLimit(p => p + PAGE_SIZE);
     setTimeout(() => {
       const newHeight = node.scrollHeight;
       node.scrollTop = newHeight - oldHeight;
     }, 200);
   }, [loadMessages, limit]);
+
+  console.log(limit, dataLength);
 
   useEffect(() => {
     const node = selfRef.current;
