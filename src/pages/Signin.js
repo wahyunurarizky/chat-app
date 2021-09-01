@@ -38,14 +38,14 @@ const Signin = () => {
                 <h2>Welcome to chat</h2>
                 <p>
                   Create with ❤ by{' '}
-                  <a href="https://arzky.me"> Wahyu Nur Arizky</a>
+                  <a href="https://arzky.me"> Wahyu Nur Arizky</a> with reactJS
                 </p>
-                <p>
+                {/* <p>
                   From Course Udemy by{' '}
                   <a href="http://udemy.com/course/the-complete-react-bootcamp-2020-w-react-hooks-firebase/">
                     Arash Ahadzadeh, Andrew Hulenko
                   </a>{' '}
-                </p>
+                </p> */}
               </div>
 
               <div className="mt-3">
